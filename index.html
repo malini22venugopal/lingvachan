@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>हिंदी ऑडियो क्विज़ — लिंग & वचन</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Noto Sans Devanagari',sans-serif;background:#fff9f0;margin:0;padding:20px;color:#111}
+h1{color:#b71c1c;text-align:center;margin:6px 0 18px;font-size:2rem}
+.center{max-width:760px;margin:0 auto;padding:12px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:12px}
+button{border:none;padding:10px 14px;border-radius:8px;font-size:1rem;cursor:pointer;transition:background 0.2s}
+button.blue{background:#1565c0;color:#fff;box-shadow:0 2px 0 rgba(0,0,0,0.08)}
+button.blue:active{background:#0d47a1}
+button.gray{background:#6c757d;color:#fff}
+button.gray:active{background:#5a6268}
+button:disabled{opacity:0.5;cursor:not-allowed}
+input[type=text]{width:100%;padding:12px;border-radius:8px;border:1px solid #ccc;font-size:1rem;box-sizing:border-box}
+#question{text-align:left;font-size:1.6rem;margin:18px 0 8px}
+#translation{color:#666;margin-bottom:8px}
+#feedback{min-height:28px;margin-top:12px;font-weight:700}
+#feedback.correct{color:#0b5;display:inline-block}
+#feedback.wrong{color:#c00;display:inline-block}
+.note{color:#b71c1c;margin-top:18px;font-weight:700}
+.small{font-size:0.9rem;color:#666;margin-top:12px;text-align:center}
+#loginModal{position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:999}
+.loginBox{background:#fff;padding:20px;border-radius:10px;max-width:360px;width:90%;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,0.2)}
+.loginBox input{margin:8px 0}
+#logoutBtn{background:#b71c1c;color:#fff;margin-top:10px;padding:8px 12px;border-radius:8px;border:none;cursor:pointer}
+.status{margin-top:8px;color:#b71c1c;font-weight:700}
+.buttons-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:12px 0}
+.listening{background:#ff9800 !important;color:#000 !important}
+</style>
+</head>
+<body>
+<div class="center">
+<h1>हिंदी ऑडियो क्विज़ — लिंग & वचन</h1>
+
+<!-- LOGIN MODAL -->
+<div id="loginModal">
+  <div class="loginBox">
+    <h3>लॉगिन करें</h3>
+    <input id="loginName" type="text" placeholder="अपना नाम लिखें (Name)" />
+    <div style="margin-top:10px">
+      <button id="loginBtn" class="blue">प्रवेश करें</button>
+    </div>
+    <p id="loginMsg" style="color:#c00;margin-top:10px"></p>
+    <p style="font-size:0.9rem;color:#666;margin-top:12px">एक बार पूरा करने पर वही नाम उसी ब्राउज़र/डिवाइस से फिर से क्विज़ नहीं दे पाएगा।</p>
+  </div>
+</div>
+
+<!-- QUIZ AREA -->
+<div id="quizArea" style="display:none">
+  <div id="question">क्विज़ शुरू करने के लिए "शुरू करें" दबाएँ</div>
+  <div id="translation">(Listen and answer)</div>
+  <input id="answerInput" type="text" placeholder="उत्तर बोलिए या लिखिए (Enter से जाँचें)" />
+  <div class="controls buttons-row">
+    <button id="startBtn" class="blue">▶️ शुरू करें</button>
+    <button id="resetBtn" class="gray">🔁 रीसेट</button>
+    <button id="speakBtn" class="blue">🎤 बोलें</button>
+    <button id="passBtn" class="gray">⏭ पास</button>
+    <button id="replayBtn" class="blue">🔁 फिर सुनें</button>
+    <button id="checkBtn" class="blue">✅ जाँचें</button>
+  </div>
+  <div id="feedback"></div>
+  <div id="score" class="small"></div>
+  <button id="logoutBtn">🔒 लॉगआउट और रिपोर्ट भेजें</button>
+  <p class="note" id="voiceWarn" style="display:none">🔴 आपके ब्राउज़र में हिंदी आवाज़ काम नहीं कर रही है। कृपया Chrome या Edge में खोलें।</p>
+  <p class="small">Chrome (desktop / HTTPS / localhost) पर सबसे अच्छा काम करता है — पहली बार माइक्रोफ़ोन अनुमति दें।</p>
+</div>
+</div>
+
+<script>
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyLOxs5vIy7zPBecZ0aCZKO8FeDMw0R2sDdptjIS299vrj1JgUW-7VGMxmLCieCLuIz4A/exec";
+const WHATSAPP_PHONE = "919994895676";
+
+const vachanQuestions = [
+  { word: "बालक", answers:["बालक","बालक"] },
+  { word: "कलम ", answers:["कलमें","कलमे"] },
+  { word: "कुत्ता", answers:["कुत्ते","कुत्ते"] },
+  { word: "घोड़ा", answers:["घोड़े","घोड़े"] },
+  { word: "दोस्त", answers:["दोस्त","दोस्त"] },
+  { word: "चिड़िया", answers:["चिड़ियाँ","चिड़ियाएं"] },
+  { word: "देवता", answers:["देवता","देवता"] },
+  { word: "लड़की", answers:["लड़कियाँ","लड़कियां"] },
+  { word: "नदी", answers:["नदियाँ","नदियां"] },
+  { word: "फल", answers:["फल","फल"] },
+  { word: "सड़क", answers:["सड़कें","सड़के"] },
+  { word: "गाड़ी", answers:["गाड़ियाँ","गाड़ियों"] },
+  { word: "किताब", answers:["किताबें","किताबे"] }
+];
+
+const lingQuestions = [
+  { word:"साहब", male:["साहब"], female:["साहिबा"] },
+  { word:"शेर", male:["शेर"], female:["शेरनी"] },
+  { word:"कुत्ता", male:["कुत्ता"], female:["कुतिया"] },
+  { word:"अभिनेता", male:["अभिनेता"], female:["अभिनेत्री"] },
+  { word:"घोड़ा", male:["घोड़ा"], female:["घोड़ी"] },
+  { word:"बैल", male:["बैल"], female:["गाय"] },
+  { word:"ठाकुर", male:["ठाकुर"], female:["ठकुराईन"] },
+  { word:"युवक", male:["युवक"], female:["युवती"] },
+  { word:"अध्यापक", male:["अध्यापक"], female:["अध्यापिका"] },
+  { word:"सेठ", male:["सेठ"], female:["सेठानी"] },
+  { word:"बकरा", male:["बकरा"], female:["बकरी"] },
+  { word:"सुनार", male:["सुनार"], female:["सुनारीन"] },
+  { word:"चौधरी", male:["चौधरी"], female:["चौधराईन"] },
+  { word:"लुहार", male:["लुहार"], female:["लुहारीन"] }
+];
+
+let pool = [];
+vachanQuestions.forEach(q => pool.push(Object.assign({type:'vachan'}, q)));
+lingQuestions.forEach(q => pool.push(Object.assign({type:'ling'}, q)));
+
+function shuffle(a) { 
+  for(let i = a.length - 1; i > 0; i--) { 
+    const j = Math.floor(Math.random() * (i + 1)); 
+    [a[i], a[j]] = [a[j], a[i]]; 
+  } 
+}
+
+let idx = 0, score = 0, started = false, startTime = 0, loginTime = '';
+let recognition = null;
+let currentUtterance = null;
+
+const loginModal = document.getElementById('loginModal');
+const loginName = document.getElementById('loginName');
+const loginBtn = document.getElementById('loginBtn');
+const loginMsg = document.getElementById('loginMsg');
+const quizArea = document.getElementById('quizArea');
+const questionEl = document.getElementById('question');
+const translationEl = document.getElementById('translation');
+const answerInput = document.getElementById('answerInput');
+const startBtn = document.getElementById('startBtn');
+const resetBtn = document.getElementById('resetBtn');
+const speakBtn = document.getElementById('speakBtn');
+const passBtn = document.getElementById('passBtn');
+const replayBtn = document.getElementById('replayBtn');
+const checkBtn = document.getElementById('checkBtn');
+const feedbackEl = document.getElementById('feedback');
+const scoreEl = document.getElementById('score');
+const logoutBtn = document.getElementById('logoutBtn');
+const voiceWarn = document.getElementById('voiceWarn');
+
+function normalize(s) { 
+  return s ? s.toString().normalize('NFD').replace(/[\u093C-\u094D\u0964-\u0965\s\p{P}]/gu, '').toLowerCase() : ''; 
+}
+
+function matchAnswer(inp, expected) { 
+  return expected.some(e => normalize(inp) === normalize(e)); 
+}
+
+function speakQuestion() {
+  const text = questionEl.textContent;
+  
+  const hiVoices = speechSynthesis.getVoices().filter(v => v.lang.includes('hi'));
+  
+  if (hiVoices.length) {
+    speechSynthesis.cancel();
+    currentUtterance = new SpeechSynthesisUtterance(text);
+    currentUtterance.lang = 'hi-IN';
+    currentUtterance.rate = 0.7;
+    speechSynthesis.speak(currentUtterance);
+    feedbackEl.textContent = 'सुन रहे हैं...';
+  } else {
+    questionEl.style.background = '#ffeb3b';
+    feedbackEl.textContent = 'पाठ पढ़ें: ' + text;
+    setTimeout(() => questionEl.style.background = '', 2000);
+  }
+}
+
+function startSpeechRecognition() {
+  if (location.protocol !== 'https:') {
+    feedbackEl.textContent = 'HTTPS जरूरी है';
+    return;
+  }
+  
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    feedbackEl.textContent = 'माइक सपोर्ट नहीं';
+    voiceWarn.style.display = 'block';
+    return;
+  }
+  
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = 'hi-IN';
+  
+  recognition.onstart = () => {
+    speakBtn.innerHTML = '🟡 सुन रहा...';
+    speakBtn.classList.add('listening');
+    feedbackEl.textContent = 'बोलें...';
+  };
+  recognition.onerror = (e) => {
+    feedbackEl.textContent = `माइक त्रुटि: ${e.error}`;
+    speakBtn.innerHTML = '🎤 बोलें';
+    speakBtn.classList.remove('listening');
+  };
+  recognition.onend = () => {
+    speakBtn.innerHTML = '🎤 बोलें';
+    speakBtn.classList.remove('listening');
+  };
+  
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    answerInput.value = transcript;
+    feedbackEl.textContent = `"${transcript}" सुना गया`;
+    setTimeout(() => checkBtn.click(), 800);
+  };
+  
+  try {
+    recognition.start();
+  } catch (e) {
+    feedbackEl.textContent = 'माइक शुरू नहीं हो सका: ' + e.message;
+  }
+}
+
+function showQuestion() {
+  if (idx >= pool.length) { 
+    endQuiz(); 
+    return; 
+  }
+  const q = pool[idx];
+  if (q.type === 'vachan') {
+    questionEl.textContent = `वचन बदलिए: ${q.word} का बहुवचन बताइए`;
+    translationEl.textContent = `(Change to plural)`;
+    q._expected = q.answers;
+  } else {
+    if (Math.random() < 0.5) { 
+      questionEl.textContent = `लिंग बदलिए: ${q.word} का पुल्लिंग बताइए`; 
+      translationEl.textContent = `(Change to masculine)`; 
+      q._expected = q.male; 
+    } else { 
+      questionEl.textContent = `लिंग बदलिए: ${q.word} का स्त्रीलिंग बताइए`; 
+      translationEl.textContent = `(Change to feminine)`; 
+      q._expected = q.female; 
+    }
+  }
+  answerInput.value = ''; 
+  feedbackEl.textContent = ''; 
+  answerInput.disabled = false; 
+  passBtn.disabled = false; 
+  replayBtn.disabled = false;
+  speakBtn.disabled = false;
+}
+
+startBtn.onclick = () => { 
+  if (!started) { 
+    started = true; 
+    idx = 0; 
+    score = 0; 
+    startTime = Date.now(); 
+    shuffle(pool); 
+    showQuestion(); 
+    scoreEl.textContent = ''; 
+  } 
+};
+
+resetBtn.onclick = () => { 
+  started = false; 
+  idx = 0; 
+  score = 0; 
+  speechSynthesis.cancel();
+  if (recognition) recognition.stop();
+  questionEl.textContent = 'क्विज़ रीसेट हुआ। "शुरू करें" दबाएँ'; 
+  feedbackEl.textContent = ''; 
+  scoreEl.textContent = ''; 
+  answerInput.disabled = true;
+  speakBtn.disabled = true;
+  passBtn.disabled = true;
+  replayBtn.disabled = true;
+};
+
+replayBtn.onclick = speakQuestion;
+speakBtn.onclick = startSpeechRecognition;
+
+checkBtn.onclick = () => { 
+  const v = answerInput.value.trim(); 
+  if (!v) { 
+    feedbackEl.className = 'wrong'; 
+    feedbackEl.textContent = 'कृपया उत्तर दें'; 
+    return; 
+  } 
+  checkAnswerInput(v); 
+};
+
+function checkAnswerInput(userTxt) {
+  const q = pool[idx];
+  if (matchAnswer(userTxt, q._expected)) {
+    score++;
+    feedbackEl.className = 'correct'; 
+    feedbackEl.textContent = 'सही उत्तर ✓';
+    answerInput.disabled = true;
+    speakBtn.disabled = true;
+    passBtn.disabled = true;
+    idx++; 
+    setTimeout(showQuestion, 1000);
+  } else {
+    feedbackEl.className = 'wrong'; 
+    feedbackEl.textContent = 'गलत उत्तर — फिर से बोलें या पास दबाएँ।';
+  }
+}
+
+answerInput.addEventListener('keydown', e => { 
+  if (e.key === 'Enter') checkBtn.click(); 
+});
+
+passBtn.onclick = () => { 
+  idx++; 
+  showQuestion(); 
+};
+
+function endQuiz() {
+  started = false; 
+  speechSynthesis.cancel();
+  if (recognition) recognition.stop();
+  questionEl.textContent = 'क्विज़ समाप्त!'; 
+  translationEl.textContent = ''; 
+  feedbackEl.textContent = '';
+  scoreEl.textContent = `आपका स्कोर: ${score} / ${pool.length}`;
+  answerInput.disabled = true;
+  speakBtn.disabled = true;
+  passBtn.disabled = true;
+  replayBtn.disabled = true;
+}
+
+logoutBtn.onclick = async () => {
+  const name = localStorage.getItem('quiz_user_name') || loginName.value || 'Unknown';
+  const total = pool.length;
+  const duration = ((Date.now() - startTime) / 1000 / 60).toFixed(1);
+
+  const payload = {
+    action: "logout", 
+    name: name, 
+    loginTime: loginTime,
+    score: score, 
+    attempted: idx, 
+    total: total,
+    duration: duration + " मिनट",
+    remarks: ""
+  };
+
+  try { 
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST', 
+      headers: {'Content-Type': 'application/json'}, 
+      body: JSON.stringify(payload)
+    }); 
+  } catch (e) { 
+    console.warn(e); 
+  }
+
+  const waMsg = encodeURIComponent(`नमस्ते! मैं ${name} हूँ। मेरा स्कोर ${score}/${total} है (${duration} मिनट में)।`);
+  window.open(`https://wa.me/${WHATSAPP_PHONE}?text=${waMsg}`, '_blank');
+
+  localStorage.setItem('quiz_done_for_' + name, JSON.stringify({
+    score, total, time: new Date().toLocaleString()
+  }));
+  localStorage.removeItem('quiz_user_name');
+  alert('रिपोर्ट भेजी गयी और WhatsApp ड्राफ्ट खुल गया।');
+  location.reload();
+};
+
+loginBtn.onclick = () => {
+  const name = loginName.value.trim();
+  if (!name) { 
+    loginMsg.textContent = "कृपया नाम दर्ज करें"; 
+    return; 
+  }
+  if (localStorage.getItem('quiz_done_for_' + name)) { 
+    loginMsg.textContent = "आपने पहले ही यह क्विज़ पूरा कर लिया है।"; 
+    return; 
+  }
+  loginTime = new Date().toLocaleString();
+  localStorage.setItem('quiz_user_name', name);
+  loginModal.style.display = 'none'; 
+  quizArea.style.display = 'block';
+
+  // Preload voices now
+  speechSynthesis.getVoices();
+  speechSynthesis.onvoiceschanged = () => {
+    const hiVoices = speechSynthesis.getVoices().filter(v => v.lang.includes('hi'));
+    if (hiVoices.length === 0) {
+      voiceWarn.style.display = 'block';
+    } else {
+      voiceWarn.style.display = 'none';
+    }
+  };
+};
+
+function preloadVoices() {
+  return new Promise(resolve => {
+    let voices = speechSynthesis.getVoices();
+    if (voices.length) {
+      resolve(voices);
+    } else {
+      speechSynthesis.onvoiceschanged = () => {
+        voices = speechSynthesis.getVoices();
+        resolve(voices);
+      };
+    }
+  });
+}
+
+window.addEventListener('load', async () => {
+  const sessionName = localStorage.getItem('quiz_user_name');
+  const done = sessionName ? localStorage.getItem('quiz_done_for_' + sessionName) : null;
+  if (sessionName && !done) {
+    loginName.value = sessionName;
+    loginModal.style.display = 'none';
+    quizArea.style.display = 'block';
+    answerInput.disabled = true;
+    speakBtn.disabled = true;
+    passBtn.disabled = true;
+    replayBtn.disabled = true;
+  } else {
+    loginModal.style.display = 'flex';
+    quizArea.style.display = 'none';
+  }
+
+  const voices = await preloadVoices();
+  const hiVoices = voices.filter(v => v.lang.includes('hi'));
+  if (hiVoices.length === 0) {
+    voiceWarn.style.display = 'block';
+  } else {
+    voiceWarn.style.display = 'none';
+  }
+});
+</script>
+</body>
+</html>
